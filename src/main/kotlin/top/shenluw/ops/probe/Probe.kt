@@ -23,5 +23,18 @@ interface Probe {
  * 采集数据传输接口
  */
 interface MetricsTransport {
-	fun transport(metrics: Metrics)
+	/**
+	 * @param group 数据分组
+	 * @param source 数据来源
+	 */
+	fun transport(group: String, metrics: Metrics, source: String)
+}
+
+class MetricsTransportComposite(private val transports: List<MetricsTransport>) : MetricsTransport {
+
+	override fun transport(group: String, metrics: Metrics, source: String) {
+		transports.forEach {
+			it.transport(group, metrics, source)
+		}
+	}
 }

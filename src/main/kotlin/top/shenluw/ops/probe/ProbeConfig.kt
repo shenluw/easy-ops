@@ -8,7 +8,7 @@ import java.io.Serializable
  * created: 2021/2/8 16:15
  */
 class ProbeConfig {
-	var http: HttpProbeConfig? = null
+	var http: List<HttpProbeConfig>? = null
 
 	override fun toString(): String {
 		return "ProbeConfig(http=$http)"

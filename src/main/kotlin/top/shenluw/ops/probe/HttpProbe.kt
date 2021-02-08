@@ -29,6 +29,7 @@ class HttpProbe(private val config: HttpProbeConfig) : Probe, KSlf4jLogger {
 		.retryOnConnectionFailure(false)
 		.build()
 
+	private val metricsGroup = "http_" + config.url
 
 	private var reqParams = Request.Builder()
 		.url(config.url)
@@ -59,16 +60,20 @@ class HttpProbe(private val config: HttpProbeConfig) : Probe, KSlf4jLogger {
 
 			val ts = System.currentTimeMillis()
 			transport?.apply {
-				transport(Metrics(MetricsNames.HTTP_STATUS_CODE, MetricsType.NUMBER, response.code, ts))
+				transport(
+					metricsGroup,
+					Metrics(MetricsNames.HTTP_STATUS_CODE, MetricsType.NUMBER, response.code, ts),
+					config.url
+				)
 				response.body?.string()?.apply {
-					transport(Metrics(MetricsNames.HTTP_BODY, MetricsType.STRING, this, ts))
+					transport(metricsGroup, Metrics(MetricsNames.HTTP_BODY, MetricsType.STRING, this, ts), config.url)
 				}
 			}
 		} catch (e: Exception) {
 			log.warn("请求失败 {}: {}", config.method, config.url, e.message)
 			val ts = System.currentTimeMillis()
 			transport?.apply {
-				transport(Metrics(MetricsNames.HTTP_EXCEPTION, MetricsType.ANY, e, ts))
+				transport(metricsGroup, Metrics(MetricsNames.HTTP_EXCEPTION, MetricsType.ANY, e, ts), config.url)
 			}
 		}
 	}
