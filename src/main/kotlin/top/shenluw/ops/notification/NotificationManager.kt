@@ -2,6 +2,9 @@ package top.shenluw.ops.notification
 
 import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.ops.OpsException
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 /**
  * @author Shenluw
@@ -10,6 +13,12 @@ import top.shenluw.ops.OpsException
 class NotificationManager(private val config: NotificationConfig) : KSlf4jLogger {
 
 	private val notifications = mutableListOf<Notification>()
+
+	private val executorService = ThreadPoolExecutor(
+		2, 8,
+		60L, TimeUnit.SECONDS,
+		LinkedBlockingQueue(32)
+	)
 
 	init {
 		checkConfig()
@@ -39,10 +48,12 @@ class NotificationManager(private val config: NotificationConfig) : KSlf4jLogger
 		}
 	}
 
-	fun send(message: Message) {
+	fun sendAsync(message: Message) {
 		notifications.forEach {
 			try {
-				it.send(message)
+				executorService.submit {
+					it.send(message)
+				}
 			} catch (e: Exception) {
 				log.error("消息发送失败 {}", message, e)
 			}

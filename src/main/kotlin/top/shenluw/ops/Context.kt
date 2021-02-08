@@ -4,10 +4,16 @@ import com.google.common.io.Resources
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.representer.Representer
 import top.shenluw.luss.common.log.KSlf4jLogger
+import top.shenluw.ops.alert.AlertEvent
 import top.shenluw.ops.alert.AlertManager
+import top.shenluw.ops.alert.AlertReceiver
+import top.shenluw.ops.notification.Message
 import top.shenluw.ops.notification.NotificationManager
+import top.shenluw.ops.probe.MetricsTransport
 import top.shenluw.ops.probe.ProbeManager
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import javax.swing.text.DateFormatter
 
 /**
  * @author Shenluw
@@ -32,15 +38,43 @@ class Context : KSlf4jLogger {
 		probeManager = ProbeManager(config.probe)
 
 		config.notification?.apply {
+			if (!this.enable) {
+				return
+			}
 			notificationManager = NotificationManager(this)
 		}
 		config.alert?.apply {
+			if (!this.enable) {
+				return
+			}
 			alertManager = AlertManager(this)
+			notificationManager?.also {
+				alertManager?.register(NotificationAlertReceiver(it))
+			}
 		}
+		probeManager?.subscribe(object : MetricsTransport {
+			override fun transport(group: String, metrics: Metrics, source: String) {
+				alertManager?.receiveMetrics(group, metrics, source)
+			}
+		})
 	}
 
 	fun start() {
 		probeManager?.start()
+	}
+
+	private class NotificationAlertReceiver(private val notificationManager: NotificationManager) : AlertReceiver {
+
+		private val format = SimpleDateFormat("yyyy-MM-dd HH:mm:SSS")
+
+		override fun receive(evt: AlertEvent) {
+			val subject = "告警事件: " + evt.source
+			val msg = StringBuilder()
+			msg.append("事件名称： ").append(evt.name).append('\n')
+				.append("触发时间： ").append(format.format(System.currentTimeMillis())).append('\n')
+				.append("原因： ").append(evt.reason)
+			notificationManager.sendAsync(Message(subject, msg.toString()))
+		}
 	}
 }
 

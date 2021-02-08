@@ -5,6 +5,7 @@ package top.shenluw.ops.notification
  * created: 2021/2/8 17:10
  */
 class NotificationConfig {
+	var enable = true
 	var email: List<EmailConfig>? = null
 }
 
