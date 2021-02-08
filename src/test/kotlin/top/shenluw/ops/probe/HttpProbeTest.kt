@@ -1,8 +1,6 @@
 package top.shenluw.ops.probe
 
 import org.junit.jupiter.api.Test
-
-import org.junit.jupiter.api.Assertions.*
 import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.ops.Metrics
 import java.util.concurrent.TimeUnit
@@ -21,8 +19,8 @@ internal class HttpProbeTest : KSlf4jLogger {
 
 		val probe = HttpProbe(config)
 		probe.transport = object : MetricsTransport {
-			override fun transport(metrics: Metrics) {
-				log.info("rev: {}", metrics)
+			override fun transport(group: String, metrics: Metrics, source: String) {
+				log.info("rev: {} {} {}", group, metrics, source)
 			}
 		}
 		probe.start()
