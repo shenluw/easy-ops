@@ -1,0 +1,4 @@
+
+probe:
+  http:
+    url: http://localhost:1080
