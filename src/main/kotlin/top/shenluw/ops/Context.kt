@@ -1,8 +1,8 @@
 package top.shenluw.ops
 
+import com.charleskorn.kaml.Yaml
+import com.charleskorn.kaml.YamlConfiguration
 import com.google.common.io.Resources
-import org.yaml.snakeyaml.Yaml
-import org.yaml.snakeyaml.representer.Representer
 import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.ops.alert.AlertEvent
 import top.shenluw.ops.alert.AlertManager
@@ -13,7 +13,6 @@ import top.shenluw.ops.probe.MetricsTransport
 import top.shenluw.ops.probe.ProbeManager
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import javax.swing.text.DateFormatter
 
 /**
  * @author Shenluw
@@ -24,16 +23,17 @@ class Context : KSlf4jLogger {
 	var alertManager: AlertManager? = null
 	var notificationManager: NotificationManager? = null
 	var probeManager: ProbeManager? = null
+	var metricsStore: MetricsStore? = null
 
 	/**
 	 * 加载配置
 	 */
 	fun load() {
 		val configSource = Resources.toString(Resources.getResource("application.yml"), StandardCharsets.UTF_8)
-		val yaml = Yaml(Representer().apply {
-			propertyUtils.isSkipMissingProperties = true
-		})
-		val config = yaml.loadAs(configSource, ApplicationConfig::class.java)
+		val yaml = Yaml(configuration = YamlConfiguration(strictMode = false))
+		val config = yaml.decodeFromString(ApplicationConfig.serializer(), configSource)
+
+		metricsStore = MetricsStore(config.store ?: MetricsStoreConfig())
 
 		probeManager = ProbeManager(config.probe)
 
@@ -47,7 +47,7 @@ class Context : KSlf4jLogger {
 			if (!this.enable) {
 				return
 			}
-			alertManager = AlertManager(this)
+			alertManager = AlertManager(this, metricsStore!!)
 			notificationManager?.also {
 				alertManager?.register(NotificationAlertReceiver(it))
 			}

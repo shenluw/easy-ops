@@ -1,47 +1,50 @@
 package top.shenluw.ops.alert
 
+import kotlinx.serialization.Serializable
+
 /**
  * @author Shenluw
  * created: 2021/2/8 17:13
  */
-class AlertConfig {
-	var enable = true
-
+@Serializable
+data class AlertConfig(
+	val enable: Boolean = true,
 	/**
 	 * 延迟触发
 	 * 会合并短时间内的告警信息
 	 */
-	var delayTriggerTime = 3_000
+	val delayTriggerTime: Int = 3_000,
 
-	var rules: List<AlertMetricsRule>? = null
-}
+	val rules: Map<String, AlertMetricsRule>? = null,
+)
 
-class AlertMetricsRule {
+@Serializable
+data class AlertMetricsRule(
 	/**
 	 * 规则数据指标
 	 */
-	lateinit var metrics: String
+	val metrics: String,
 
 	/**
 	 * 规则描述
 	 */
-	var desc: String? = null
+	val desc: String? = null,
 
 	/**
 	 * 对比值
 	 */
-	lateinit var value: Any
+	val value: String,
 
 	/**
 	 * 比较类型
 	 */
-	lateinit var condition: ConditionType
+	val condition: ConditionType,
 
 	/**
 	 * 告警等级
 	 */
-	var level: Int = 1
-}
+	val level: Int = 1
+)
 
 enum class ConditionType {
 	/**

@@ -5,6 +5,7 @@ import org.jeasy.rules.api.RulesEngine
 import org.jeasy.rules.core.DefaultRulesEngine
 import org.jeasy.rules.core.RuleBuilder
 import top.shenluw.ops.Metrics
+import top.shenluw.ops.MetricsStore
 import top.shenluw.ops.OpsException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
@@ -17,7 +18,7 @@ import kotlin.math.max
  * @author Shenluw
  * created: 2021/2/8 16:10
  */
-class AlertManager(private val config: AlertConfig) {
+class AlertManager(private val config: AlertConfig, private val metricsStore: MetricsStore) {
 
 	private val scheduled = Executors.newSingleThreadScheduledExecutor()
 
@@ -35,7 +36,7 @@ class AlertManager(private val config: AlertConfig) {
 		checkConfig()
 		rulesEngine = DefaultRulesEngine()
 		rules = Rules(
-			config.rules?.stream()
+			config.rules?.values?.stream()
 				?.map {
 					val metrics = it.metrics
 					RuleBuilder()
@@ -45,17 +46,17 @@ class AlertManager(private val config: AlertConfig) {
 						.`when` { f ->
 							val type = it.condition
 							if (type == ConditionType.LIKE) {
-								f.get<String>(metrics).contains(it.value.toString())
+								f.get<String>(metrics).contains(it.value)
 							} else if (type == ConditionType.EQ) {
-								f.get<String>(metrics) == it.value.toString()
+								f.get<String>(metrics) == it.value
 							} else if (type == ConditionType.LESS) {
-								f.get<Float>(metrics) < it.value as Float
+								f.get<Float>(metrics) < it.value.toFloat()
 							} else if (type == ConditionType.LESS_EQ) {
-								f.get<Float>(metrics) <= it.value as Float
+								f.get<Float>(metrics) <= it.value.toFloat()
 							} else if (type == ConditionType.GRAN) {
-								f.get<Float>(metrics) > it.value as Float
+								f.get<Float>(metrics) > it.value.toFloat()
 							} else if (type == ConditionType.GRAN_EQ) {
-								f.get<Float>(metrics) >= it.value as Float
+								f.get<Float>(metrics) >= it.value.toFloat()
 							}
 							false
 						}
@@ -64,6 +65,7 @@ class AlertManager(private val config: AlertConfig) {
 		)
 
 		if (config.delayTriggerTime > 0) {
+			// 错开告警间隔检查
 			var delay = config.delayTriggerTime / 100L
 			delay = max(100, delay)
 			scheduled.scheduleWithFixedDelay({ tryFire() }, delay, delay, TimeUnit.MILLISECONDS)
@@ -73,16 +75,20 @@ class AlertManager(private val config: AlertConfig) {
 	private fun checkConfig() {
 		val rs = config.rules
 		if (rs.isNullOrEmpty()) {
+			if (config.enable) {
+				throw OpsException("告警规则不能为空")
+			}
 			return
 		}
-		rs.forEach {
-			val condition = it.condition
-			if (condition == ConditionType.LESS || condition == ConditionType.GRAN) {
-				if (it.value !is Number) {
-					throw OpsException("规则配置错误：" + it.metrics)
-				}
-			} else if (condition == ConditionType.LIKE || condition == ConditionType.EQ) {
-				if (it.value !is String) {
+		rs.values.forEach {
+			if (it.condition in arrayOf(
+					ConditionType.GRAN,
+					ConditionType.GRAN_EQ,
+					ConditionType.LESS_EQ,
+					ConditionType.LESS
+				)
+			) {
+				if (it.value.toFloatOrNull() == null) {
 					throw OpsException("规则配置错误：" + it.metrics)
 				}
 			}

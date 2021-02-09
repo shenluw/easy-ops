@@ -21,7 +21,7 @@ class ProbeManager(private val config: ProbeConfig) : KSlf4jLogger {
 			.map { it.url }
 			.distinct()
 			.count().toInt()
-		if (count != config.http?.size) {
+		if (count != config.http.size) {
 			throw OpsException("http配置url不能重复")
 		}
 	}

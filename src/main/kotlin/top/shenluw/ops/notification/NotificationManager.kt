@@ -23,7 +23,7 @@ class NotificationManager(private val config: NotificationConfig) : KSlf4jLogger
 	init {
 		checkConfig()
 
-		config.email?.forEach {
+		config.email?.values?.forEach {
 			notifications.add(EMailNotification(it))
 		}
 	}
@@ -32,7 +32,7 @@ class NotificationManager(private val config: NotificationConfig) : KSlf4jLogger
 		if (config.email.isNullOrEmpty()) {
 			return
 		}
-		config.email?.forEach {
+		config.email?.values?.forEach {
 			if (it.smtpHost.isBlank()) {
 				throw OpsException("email smtp 配置为空")
 			}
