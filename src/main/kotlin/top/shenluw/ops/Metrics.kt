@@ -22,10 +22,29 @@ enum class MetricsType {
  * 采集指标 字段
  */
 object MetricsNames {
+	/**
+	 * 组合分割字符
+	 */
+	const val SPLITERATOR = "_"
+
+	/************** 计算指标 ***************************/
+
+	/**
+	 * 连续次数
+	 */
+	const val INC_COUNT = "inc_count"
+
+	/**
+	 * 2次之间间隔
+	 */
+	const val INTERVAL = "interval"
+
+	/*************** 普通指标 *************************/
+
 	/** http */
-	val HTTP_STATUS_CODE = "http_status_code"
-	val HTTP_BODY = "http_body"
+	const val HTTP_STATUS_CODE = "http_status_code"
+	const val HTTP_BODY = "http_body"
 
 	/* http 请求出现异常 */
-	val HTTP_EXCEPTION = "http_exception"
+	const val HTTP_EXCEPTION = "http_exception"
 }

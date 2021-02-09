@@ -60,20 +60,16 @@ class HttpProbe(private val config: HttpProbeConfig) : Probe, KSlf4jLogger {
 
 			val ts = System.currentTimeMillis()
 			transport?.apply {
-				transport(
-					metricsGroup,
-					Metrics(MetricsNames.HTTP_STATUS_CODE, MetricsType.NUMBER, response.code, ts),
-					config.url
-				)
+				transport(config.id, Metrics(MetricsNames.HTTP_STATUS_CODE, MetricsType.NUMBER, response.code, ts))
 				response.body?.string()?.apply {
-					transport(metricsGroup, Metrics(MetricsNames.HTTP_BODY, MetricsType.STRING, this, ts), config.url)
+					transport(config.id, Metrics(MetricsNames.HTTP_BODY, MetricsType.STRING, this, ts))
 				}
 			}
 		} catch (e: Exception) {
 			log.warn("请求失败 {}: {}", config.method, config.url, e.message)
 			val ts = System.currentTimeMillis()
 			transport?.apply {
-				transport(metricsGroup, Metrics(MetricsNames.HTTP_EXCEPTION, MetricsType.ANY, e, ts), config.url)
+				transport(config.id, Metrics(MetricsNames.HTTP_EXCEPTION, MetricsType.ANY, e, ts))
 			}
 		}
 	}

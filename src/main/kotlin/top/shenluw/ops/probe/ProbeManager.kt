@@ -33,7 +33,7 @@ class ProbeManager(private val config: ProbeConfig) : KSlf4jLogger {
 			return
 		}
 		checkConfig()
-		config.http?.forEach {
+		config.http.forEach {
 			val probe = HttpProbe(it)
 			probe.transport = MetricsTransportComposite(metricsTransports)
 			probes.add(probe)

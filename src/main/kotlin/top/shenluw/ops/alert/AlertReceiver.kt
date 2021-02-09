@@ -1,5 +1,7 @@
 package top.shenluw.ops.alert
 
+import kotlin.properties.Delegates
+
 /**
  * 接收告警事件
  * @author Shenluw
@@ -14,7 +16,6 @@ interface AlertEvent {
 	val source: String
 	val level: Int
 	val timestamp: Long
-	val reason: String
 }
 
 /**
@@ -29,17 +30,16 @@ data class SingleAlertEvent(
 	override val source: String,
 	override val level: Int,
 	override val timestamp: Long,
-	override val reason: String
+	val reason: String
 ) : AlertEvent
 
 /**
  * 聚合告警
  */
-data class ComboAlertEvent(
-	override val name: String,
-	override val source: String,
-	override val level: Int,
-	override val timestamp: Long,
-	override val reason: String,
-	val children: List<AlertEvent>
-) : AlertEvent
+class ComboAlertEvent : AlertEvent {
+	override lateinit var name: String
+	override lateinit var source: String
+	override var level by Delegates.notNull<Int>()
+	override var timestamp by Delegates.notNull<Long>()
+	lateinit var children: List<AlertEvent>
+}

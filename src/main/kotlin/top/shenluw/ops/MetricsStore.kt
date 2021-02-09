@@ -21,12 +21,12 @@ class MetricsStore(private val config: MetricsStoreConfig) {
 		}
 	}
 
-	fun getMetrics(source: String): List<Metrics>? {
-		return cache[source]
+	fun getMetrics(id: String): List<Metrics>? {
+		return cache[id]
 	}
 
-	fun store(source: String, metrics: Metrics) {
-		val data = cache.getOrPut(source, { mutableListOf() })
+	fun store(id: String, metrics: Metrics) {
+		val data = cache.getOrPut(id, { mutableListOf() })
 		data.add(metrics)
 		if (data.size > config.maxSize) {
 			data.removeFirst()

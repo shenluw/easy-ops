@@ -4,11 +4,10 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import com.google.common.io.Resources
 import top.shenluw.luss.common.log.KSlf4jLogger
-import top.shenluw.ops.alert.AlertEvent
-import top.shenluw.ops.alert.AlertManager
-import top.shenluw.ops.alert.AlertReceiver
+import top.shenluw.ops.alert.*
 import top.shenluw.ops.notification.Message
 import top.shenluw.ops.notification.NotificationManager
+import top.shenluw.ops.probe.LogMetricsTransport
 import top.shenluw.ops.probe.MetricsTransport
 import top.shenluw.ops.probe.ProbeManager
 import java.nio.charset.StandardCharsets
@@ -52,9 +51,10 @@ class Context : KSlf4jLogger {
 				alertManager?.register(NotificationAlertReceiver(it))
 			}
 		}
+		probeManager?.subscribe(LogMetricsTransport())
 		probeManager?.subscribe(object : MetricsTransport {
-			override fun transport(group: String, metrics: Metrics, source: String) {
-				alertManager?.receiveMetrics(group, metrics, source)
+			override fun transport(id: String, metrics: Metrics) {
+				alertManager?.receiveMetrics(id, metrics)
 			}
 		})
 	}
@@ -71,8 +71,25 @@ class Context : KSlf4jLogger {
 			val subject = "告警事件: " + evt.source
 			val msg = StringBuilder()
 			msg.append("事件名称： ").append(evt.name).append('\n')
-				.append("触发时间： ").append(format.format(System.currentTimeMillis())).append('\n')
-				.append("原因： ").append(evt.reason)
+				.append("触发时间： ").append(format.format(evt.timestamp)).append('\n')
+			if (evt is SingleAlertEvent) {
+				msg.append("原因： ").append(evt.reason)
+			}
+			if (evt is ComboAlertEvent) {
+				msg.append('\n').append("触发组合事件：")
+				val children = evt.children
+
+				children.forEach {
+					msg.append('\n')
+						.append("事件名称： ").append(it.name).append('\n')
+						.append("触发时间： ").append(format.format(it.timestamp))
+					if (it is SingleAlertEvent) {
+						msg.append('\n').append("原因： ").append(it.reason)
+					}
+				}
+
+			}
+
 			notificationManager.sendAsync(Message(subject, msg.toString()))
 		}
 	}

@@ -7,6 +7,7 @@ import org.jeasy.rules.core.RuleBuilder
 import top.shenluw.ops.Metrics
 import top.shenluw.ops.MetricsStore
 import top.shenluw.ops.OpsException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -18,7 +19,7 @@ import kotlin.math.max
  * @author Shenluw
  * created: 2021/2/8 16:10
  */
-class AlertManager(private val config: AlertConfig, private val metricsStore: MetricsStore) {
+class AlertManager(private val config: AlertConfig, private val store: MetricsStore) {
 
 	private val scheduled = Executors.newSingleThreadScheduledExecutor()
 
@@ -26,7 +27,7 @@ class AlertManager(private val config: AlertConfig, private val metricsStore: Me
 
 	private val delayQueue = ConcurrentLinkedQueue<AlertEvent>()
 
-	private val handlers = hashMapOf<String, MetricsHandler>()
+	private val handlers = ConcurrentHashMap<String, MetricsHandler>()
 
 	private val rulesEngine: RulesEngine
 
@@ -99,16 +100,11 @@ class AlertManager(private val config: AlertConfig, private val metricsStore: Me
 		receivers.add(receiver)
 	}
 
-	fun receiveMetrics(group: String, metrics: Metrics, source: String) {
-		val key = group + source
-		var handler = handlers[key]
-		if (handler == null) {
-			handler = MetricsHandler(group, source)
-			handlers[key] = handler
-		}
+	fun receiveMetrics(id: String, metrics: Metrics) {
+		var handler = handlers.getOrPut(id, { MetricsHandler(id, store) })
 		val evt = handler.handle(metrics)
 		if (evt != null) {
-			if (config.delayTriggerTime == 0) {
+			if (config.delayTriggerTime > 0) {
 				delayQueue.add(evt)
 				tryFire()
 			} else {
@@ -120,12 +116,39 @@ class AlertManager(private val config: AlertConfig, private val metricsStore: Me
 
 	private fun tryFire() {
 		val millis = System.currentTimeMillis()
-		val map = hashMapOf<String, List<AlertEvent>>()
-		delayQueue.forEach {
-			if (millis > it.timestamp + config.delayTriggerTime) {
-				// TODO: 2021/2/8 处理集合 
+		val map = hashMapOf<String, MutableList<AlertEvent>>()
+		synchronized(delayQueue) {
+			val iterator = delayQueue.iterator()
+			while (iterator.hasNext()) {
+				val evt = iterator.next()
+				if (millis > evt.timestamp + config.delayTriggerTime) {
+					iterator.remove()
+					// 同一来源未聚合维度
+					map.getOrPut(evt.source, { mutableListOf() }).add(evt)
+				}
 			}
 		}
+
+		map.values.forEach {
+			if (it.size == 1) {
+				receivers.forEach { r -> r.receive(it[0]) }
+			} else {
+				val combo = ComboAlertEvent()
+				combo.name = "聚合告警"
+				combo.timestamp = millis
+
+				val children = mutableListOf<AlertEvent>()
+				combo.children = children
+				var maxLv = 0
+				it.forEach { e ->
+					children.add(e)
+					maxLv = max(maxLv, e.level)
+					combo.source = e.source
+				}
+				combo.level = maxLv
+			}
+		}
+
 	}
 
 	private fun fire(evt: AlertEvent) {
