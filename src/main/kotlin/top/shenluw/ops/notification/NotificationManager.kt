@@ -1,6 +1,6 @@
 package top.shenluw.ops.notification
 
-import top.shenluw.luss.common.log.KSlf4jLogger
+import top.shenluw.ops.log.KSlf4jLogger
 import top.shenluw.ops.OpsException
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor

@@ -10,6 +10,20 @@ version '1.0.0'
 repositories {
 	mavenCentral()
 }
+
+compileKotlin {
+	kotlinOptions {
+		freeCompilerArgs = ["-Xjsr305=strict"]
+		jvmTarget = "1.8"
+	}
+}
+compileTestKotlin {
+	kotlinOptions {
+		freeCompilerArgs = ["-Xjsr305=strict"]
+		jvmTarget = "1.8"
+	}
+}
+
 mainClassName = 'top.shenluw.ops.ApplicationKt'
 dependencies {
 	implementation "org.jetbrains.kotlin:kotlin-stdlib"
@@ -18,7 +32,7 @@ dependencies {
 	implementation 'com.github.oshi:oshi-core:5.+'
 	implementation 'com.google.guava:guava:30.1-jre'
 
-	implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.+"
+	implementation "org.jetbrains.kotlinx:kotlinx-serialization-core:1.0.+"
 	implementation ("com.charleskorn.kaml:kaml:+"){
 		exclude module: "kotlin-stdlib-jdk7"
 	}

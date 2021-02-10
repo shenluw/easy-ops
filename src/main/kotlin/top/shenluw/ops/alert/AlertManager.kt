@@ -1,5 +1,7 @@
 package top.shenluw.ops.alert
 
+import org.jeasy.rules.api.Facts
+import org.jeasy.rules.api.Rule
 import org.jeasy.rules.api.Rules
 import org.jeasy.rules.api.RulesEngine
 import org.jeasy.rules.core.DefaultRulesEngine
@@ -38,31 +40,8 @@ class AlertManager(private val config: AlertConfig, private val store: MetricsSt
 		rulesEngine = DefaultRulesEngine()
 		rules = Rules(
 			config.rules?.values?.stream()
-				?.map {
-					val metrics = it.metrics
-					RuleBuilder()
-						.name(metrics)
-						.description(it.desc)
-						.priority(it.level)
-						.`when` { f ->
-							val type = it.condition
-							if (type == ConditionType.LIKE) {
-								f.get<String>(metrics).contains(it.value)
-							} else if (type == ConditionType.EQ) {
-								f.get<String>(metrics) == it.value
-							} else if (type == ConditionType.LESS) {
-								f.get<Float>(metrics) < it.value.toFloat()
-							} else if (type == ConditionType.LESS_EQ) {
-								f.get<Float>(metrics) <= it.value.toFloat()
-							} else if (type == ConditionType.GRAN) {
-								f.get<Float>(metrics) > it.value.toFloat()
-							} else if (type == ConditionType.GRAN_EQ) {
-								f.get<Float>(metrics) >= it.value.toFloat()
-							}
-							false
-						}
-						.build()
-				}?.collect(Collectors.toSet())
+				?.map { createRule(it) }
+				?.collect(Collectors.toSet())
 		)
 
 		if (config.delayTriggerTime > 0) {
@@ -70,6 +49,33 @@ class AlertManager(private val config: AlertConfig, private val store: MetricsSt
 			var delay = config.delayTriggerTime / 100L
 			delay = max(100, delay)
 			scheduled.scheduleWithFixedDelay({ tryFire() }, delay, delay, TimeUnit.MILLISECONDS)
+		}
+	}
+
+	private fun createRule(ruleConfig: AlertMetricsRule): Rule {
+		val origin = RuleBuilder()
+			.name(ruleConfig.metrics)
+			.description(ruleConfig.desc)
+			.priority(ruleConfig.level)
+			.`when` { f ->
+				f.iterator().forEach { fact ->
+					val factData = fact.value as MetricsStore.FactData
+					if (ruleConfig.source == null) {
+						// 不检查id
+						return@`when` checkCondition(ruleConfig.condition, ruleConfig.value, factData.value)
+					} else {
+						if (ruleConfig.source == factData.id) {
+							return@`when` checkCondition(ruleConfig.condition, ruleConfig.value, factData.value)
+						}
+					}
+				}
+				false
+			}
+			.build()
+		return if (ruleConfig.source == null) {
+			SourceRule(origin)
+		} else {
+			SourceRule(origin, ruleConfig.source)
 		}
 	}
 
@@ -96,20 +102,59 @@ class AlertManager(private val config: AlertConfig, private val store: MetricsSt
 		}
 	}
 
+	private fun checkCondition(type: ConditionType, expected: String, actual: Any): Boolean {
+		when (type) {
+			ConditionType.LIKE -> {
+				return actual.toString().contains(expected)
+			}
+			ConditionType.EQ -> {
+				return expected == actual.toString()
+			}
+			ConditionType.LESS -> {
+				return expected.toFloat() > (actual as Number).toFloat()
+			}
+			ConditionType.LESS_EQ -> {
+				return expected.toFloat() >= (actual as Number).toFloat()
+			}
+			ConditionType.GRAN -> {
+				return expected.toFloat() < (actual as Number).toFloat()
+			}
+			ConditionType.GRAN_EQ -> {
+				return expected.toFloat() <= (actual as Number).toFloat()
+			}
+		}
+	}
+
 	fun register(receiver: AlertReceiver) {
 		receivers.add(receiver)
 	}
 
 	fun receiveMetrics(id: String, metrics: Metrics) {
-		var handler = handlers.getOrPut(id, { MetricsHandler(id, store) })
-		val evt = handler.handle(metrics)
-		if (evt != null) {
-			if (config.delayTriggerTime > 0) {
-				delayQueue.add(evt)
-				tryFire()
-			} else {
-				fire(evt)
+		handlers.getOrPut(id, { MetricsHandler(id, store) }).handle(metrics)
+
+		val facts = Facts()
+		store.getComputeFacts().forEach {
+			facts.add(it)
+		}
+		store.getFacts().forEach {
+			facts.add(it)
+		}
+
+		// 不做实时告警
+		val millis = System.currentTimeMillis()
+		rulesEngine.check(rules, facts).forEach { (rule, hit) ->
+			if (!hit) {
+				return@forEach
 			}
+			delayQueue.add(
+				SingleAlertEvent(
+					rule.name,
+					(rule as SourceRule).source,
+					rule.priority,
+					millis,
+					rule.description
+				)
+			)
 		}
 	}
 
@@ -131,7 +176,7 @@ class AlertManager(private val config: AlertConfig, private val store: MetricsSt
 
 		map.values.forEach {
 			if (it.size == 1) {
-				receivers.forEach { r -> r.receive(it[0]) }
+				fire(it[0])
 			} else {
 				val combo = ComboAlertEvent()
 				combo.name = "聚合告警"
@@ -146,6 +191,8 @@ class AlertManager(private val config: AlertConfig, private val store: MetricsSt
 					combo.source = e.source
 				}
 				combo.level = maxLv
+
+				fire(combo)
 			}
 		}
 
@@ -154,6 +201,33 @@ class AlertManager(private val config: AlertConfig, private val store: MetricsSt
 	private fun fire(evt: AlertEvent) {
 		receivers.forEach {
 			it.receive(evt)
+		}
+	}
+
+	private class SourceRule(val delegate: Rule, val source: String = "any") : Rule {
+
+		override fun compareTo(other: Rule?): Int {
+			return delegate.compareTo(other)
+		}
+
+		override fun getName(): String {
+			return delegate.name
+		}
+
+		override fun getDescription(): String {
+			return delegate.description
+		}
+
+		override fun getPriority(): Int {
+			return delegate.priority
+		}
+
+		override fun evaluate(facts: Facts?): Boolean {
+			return delegate.evaluate(facts)
+		}
+
+		override fun execute(facts: Facts?) {
+			delegate.evaluate(facts)
 		}
 	}
 }

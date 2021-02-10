@@ -1,6 +1,6 @@
 package top.shenluw.ops.probe
 
-import top.shenluw.luss.common.log.KSlf4jLogger
+import top.shenluw.ops.log.KSlf4jLogger
 import top.shenluw.ops.Metrics
 
 /**
@@ -40,7 +40,7 @@ class MetricsTransportComposite(private val transports: List<MetricsTransport>) 
 	}
 }
 
-class LogMetricsTransport : MetricsTransport, KSlf4jLogger {
+object LogMetricsTransport : MetricsTransport, KSlf4jLogger {
 	override fun transport(id: String, metrics: Metrics) {
 		log.debug("metrics: {}, {}", id, metrics)
 	}

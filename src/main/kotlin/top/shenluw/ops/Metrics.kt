@@ -14,6 +14,16 @@ package top.shenluw.ops
  */
 data class Metrics(val name: String, val type: MetricsType, val value: Any, val timestamp: Long)
 
+/**
+ * 计算指标
+ * @param name 指标名词
+ * @param type 数据类型
+ * @param value 计算结果
+ * @param timestamp 最后更新时间
+ * @param origin 原始指标值
+ */
+data class ComputeMetrics(val name: String, val type: MetricsType, var value: Any, var timestamp: Long, var origin: Any)
+
 enum class MetricsType {
 	NUMBER, STRING, ANY
 }

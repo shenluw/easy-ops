@@ -1,4 +1,4 @@
-package top.shenluw.luss.common.log
+package top.shenluw.ops.log
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

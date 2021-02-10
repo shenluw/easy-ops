@@ -2,7 +2,7 @@ package top.shenluw.ops.probe
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import top.shenluw.luss.common.log.KSlf4jLogger
+import top.shenluw.ops.log.KSlf4jLogger
 import top.shenluw.ops.Metrics
 import top.shenluw.ops.MetricsNames
 import top.shenluw.ops.MetricsType
@@ -60,10 +60,14 @@ class HttpProbe(private val config: HttpProbeConfig) : Probe, KSlf4jLogger {
 
 			val ts = System.currentTimeMillis()
 			transport?.apply {
-				transport(config.id, Metrics(MetricsNames.HTTP_STATUS_CODE, MetricsType.NUMBER, response.code, ts))
-				response.body?.string()?.apply {
-					transport(config.id, Metrics(MetricsNames.HTTP_BODY, MetricsType.STRING, this, ts))
+				try {
+					transport(config.id, Metrics(MetricsNames.HTTP_STATUS_CODE, MetricsType.NUMBER, response.code, ts))
+				} catch (e: Exception) {
+					log.error("内部数据传输错误: {}", config.id, e)
 				}
+//				response.body?.string()?.apply {
+//					transport(config.id, Metrics(MetricsNames.HTTP_BODY, MetricsType.STRING, this, ts))
+//				}
 			}
 		} catch (e: Exception) {
 			log.warn("请求失败 {}: {}", config.method, config.url, e.message)

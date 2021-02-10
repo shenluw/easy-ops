@@ -3,8 +3,8 @@ package top.shenluw.ops
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import com.google.common.io.Resources
-import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.ops.alert.*
+import top.shenluw.ops.log.KSlf4jLogger
 import top.shenluw.ops.notification.Message
 import top.shenluw.ops.notification.NotificationManager
 import top.shenluw.ops.probe.LogMetricsTransport
@@ -51,7 +51,7 @@ class Context : KSlf4jLogger {
 				alertManager?.register(NotificationAlertReceiver(it))
 			}
 		}
-		probeManager?.subscribe(LogMetricsTransport())
+		probeManager?.subscribe(LogMetricsTransport)
 		probeManager?.subscribe(object : MetricsTransport {
 			override fun transport(id: String, metrics: Metrics) {
 				alertManager?.receiveMetrics(id, metrics)
@@ -63,11 +63,13 @@ class Context : KSlf4jLogger {
 		probeManager?.start()
 	}
 
-	private class NotificationAlertReceiver(private val notificationManager: NotificationManager) : AlertReceiver {
+	private class NotificationAlertReceiver(private val notificationManager: NotificationManager) : AlertReceiver,
+		KSlf4jLogger {
 
 		private val format = SimpleDateFormat("yyyy-MM-dd HH:mm:SSS")
 
 		override fun receive(evt: AlertEvent) {
+			log.debug("触发告警： {} {}", evt.source, evt.name)
 			val subject = "告警事件: " + evt.source
 			val msg = StringBuilder()
 			msg.append("事件名称： ").append(evt.name).append('\n')

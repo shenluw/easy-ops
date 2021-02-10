@@ -1,6 +1,6 @@
 package top.shenluw.ops.probe
 
-import top.shenluw.luss.common.log.KSlf4jLogger
+import top.shenluw.ops.log.KSlf4jLogger
 import top.shenluw.ops.OpsException
 
 /**

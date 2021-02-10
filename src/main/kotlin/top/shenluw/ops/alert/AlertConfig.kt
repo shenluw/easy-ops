@@ -24,7 +24,11 @@ data class AlertMetricsRule(
 	 * 规则数据指标
 	 */
 	val metrics: String,
-
+	/**
+	 * 区分来源
+	 * 不为空表示取指定采集id数据
+	 */
+	val source: String? = null,
 	/**
 	 * 规则描述
 	 */
